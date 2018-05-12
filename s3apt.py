@@ -12,6 +12,9 @@ import hashlib
 import re
 import sys
 import os
+import gzip
+import bz2
+import lzma
 
 
 def checksums(fname):
@@ -198,9 +201,19 @@ def rebuild_package_index(prefix):
         pkginfo = pkginfo + "\n%s\n" % ("Filename: %s" % obj.key)
         pkginfos.append(pkginfo)
 
-    package_index_obj = s3.Object(bucket_name=config.APT_REPO_BUCKET_NAME, key=prefix + "/Packages")
-    print("Writing package index: %s" % (str(package_index_obj)))
-    package_index_obj.put(Body="\n".join(sorted(pkginfos)), Metadata={'packages-hash': calcd_pkghash})
+    packages = "\n".join(sorted(pkginfos)).encode('utf8')
+    formats = {
+        '':      lambda x: x,
+        '.gz' :  gzip.compress,
+        '.bz2':  bz2.compress,
+        '.xz':   lzma.compress, # defaults to xz
+    }
+
+    for suffix, compressor in formats.items():
+        o = s3.Object(bucket_name=config.APT_REPO_BUCKET_NAME,
+                      key="{}/Packages{}".format(prefix, suffix))
+        o.put(Body=compressor(packages),
+              Metadata={'packages-hash': calcd_pkghash})
 
     print("DONE REBUILDING PACKAGE INDEX")
 
