@@ -39,9 +39,12 @@ def checksums(fname):
 def get_control_data(debfile):
     ar = debian.arfile.ArFile(debfile)
 
-    control_fh = ar.getmember('control.tar.gz')
+    def is_control(name):
+        return name.split('.', 1)[0] == 'control'
 
-    tar_file = tarfile.open(fileobj=control_fh, mode='r:gz')
+    control = next(filter(is_control, ar.getnames()))
+    control_fh = ar.getmember(control)
+    tar_file = tarfile.open(fileobj=control_fh, mode='r:*')
 
     # control file can be named different things
     control_file_name = [x for x in tar_file.getmembers() if x.name in ['control', './control']][0]
