@@ -46,7 +46,7 @@ def get_control_data(debfile):
     # control file can be named different things
     control_file_name = [x for x in tar_file.getmembers() if x.name in ['control', './control']][0]
 
-    control_data = tar_file.extractfile(control_file_name).read().strip()
+    control_data = tar_file.extractfile(control_file_name).read().decode('utf8').strip()
     # Strip out control fields with blank values.  This tries to allow folded
     # and multiline fields to pass through.  See the debian policy manual for
     # more info on folded and multiline fields.
@@ -119,7 +119,7 @@ def get_cached_control_data(deb_obj):
     cache_obj = s3.Object(bucket_name=config.APT_REPO_BUCKET_NAME, key=config.CONTROL_DATA_CACHE_PREFIX + '/' + etag)
     exists = True
     try:
-        control_data = cache_obj.get()['Body'].read()
+        control_data = cache_obj.get()['Body'].read().decode('utf8')
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == 'NoSuchKey':
             exists = False
@@ -155,7 +155,7 @@ def calc_package_index_hash(deb_names):
     we can use it for short-circuiting.
     """
     md5 = hashlib.md5()
-    md5.update("\n".join(sorted(deb_names)))
+    md5.update("\n".join(sorted(deb_names)).encode('utf8'))
     return md5.hexdigest()
 
 def rebuild_package_index(prefix):
@@ -216,8 +216,7 @@ def lambda_handler(event, context):
 
     # Get the object from the event and show its content type
     bucket = event['Records'][0]['s3']['bucket']['name']
-    key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key']).decode('utf8')
-
+    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'])
 
     # If the Packages index changed or was deleted, try again to rebuild it to
     # make sure it is up to date.
