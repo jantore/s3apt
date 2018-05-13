@@ -15,7 +15,7 @@ import os
 import gzip
 import bz2
 import lzma
-
+import time
 
 def checksums(fname):
 
@@ -214,6 +214,19 @@ def rebuild_package_index(prefix):
                       key="{}/Packages{}".format(prefix, suffix))
         o.put(Body=compressor(packages),
               Metadata={'packages-hash': calcd_pkghash})
+
+    if config.CLOUDFRONT_DISTRIBUTION_ID:
+        items = ['/{}/Packages{}'.format(prefix, s) for s in formats.keys()]
+
+        cf = boto3.client('cloudfront')
+        cf.create_invalidation(DistributionId=config.CLOUDFRONT_DISTRIBUTION_ID,
+                               InvalidationBatch={
+                                   'Paths': {
+                                       'Quantity': len(items),
+                                       'Items': items,
+                                   },
+                                   'CallerReference': 's3apt-{}'.format(time.time()),
+                               })
 
     print("DONE REBUILDING PACKAGE INDEX")
 
